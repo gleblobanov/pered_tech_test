@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicI16, Ordering};
 
 const DIGITS_SUM_UPPER_BOUNDARY:i16 = 25;
 const START_COORD:(i16, i16) = (1000, 1000);
+const THREAD_LIMIT:i16 = 1000;
 
 static GLOBAL_THREAD_COUNT: AtomicI16 = AtomicI16::new(0);
 
@@ -31,29 +32,45 @@ fn threads_in_all_directions(x: (i16, i16), visited_coords: &Arc<Mutex<Vec<(i16,
 {
     thread::scope(|s| {
 
-	s.spawn(move || {
-	    GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+	if GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) < THREAD_LIMIT {
+	    s.spawn(move || {
+		GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+		step_in_one_direction(go_n(x), visited_coords);
+		GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
+	    });
+	} else {
 	    step_in_one_direction(go_n(x), visited_coords);
-	    GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
-	});
+	}
 
-	s.spawn(move || {
-	    GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+	if GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) < THREAD_LIMIT {
+	    s.spawn(move || {
+		GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+		step_in_one_direction(go_e(x), visited_coords);
+		GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
+	    });
+	} else {
 	    step_in_one_direction(go_e(x), visited_coords);
-	    GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
-	});
+	}    
 
-	s.spawn(move || {
-	    GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+	if GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) < THREAD_LIMIT {
+	    s.spawn(move || {
+		GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+		step_in_one_direction(go_s(x), visited_coords);
+		GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
+	    });
+	} else {
 	    step_in_one_direction(go_s(x), visited_coords);
-	    GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
-	});
+	}    
 
-	s.spawn(move || {
-	    GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+	if GLOBAL_THREAD_COUNT.load(Ordering::SeqCst) < THREAD_LIMIT {
+	    s.spawn(move || {
+		GLOBAL_THREAD_COUNT.fetch_add(1, Ordering::SeqCst);
+		step_in_one_direction(go_w(x), visited_coords);
+		GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
+	    });
+	} else {
 	    step_in_one_direction(go_w(x), visited_coords);
-	    GLOBAL_THREAD_COUNT.fetch_sub(1, Ordering::SeqCst);
-	});
+	}    
 
     });
 }
@@ -79,7 +96,7 @@ fn step_in_one_direction(x: (i16, i16),
 	    threads_in_all_directions(x, visited_coords);
 	 }
      }
-}   
+}
 
 fn go_n(x: (i16, i16)) -> (i16, i16) {
     (x.0, x.1 + 1)
